@@ -22,6 +22,7 @@ const itemSchema = z.object({
 const orderSchema = z.object({
   unitName: z.string().optional().default(''),
   recordDate: z.coerce.date(),
+  orderDate: z.coerce.date(),
   remark: z.string().optional().default(''),
   items: z.array(itemSchema).min(1, '至少选择一件商品'),
 })
@@ -92,6 +93,7 @@ router.post('/', async (req, res) => {
           orderNo: genOrderNo('IN'),
           unitName: parsed.data.unitName || '',
           recordDate: parsed.data.recordDate,
+          orderDate: parsed.data.orderDate,
           amount: total,
           remark: parsed.data.remark,
           operatorId: req.user!.id,
@@ -154,6 +156,7 @@ router.patch('/:id', async (req, res) => {
         data: {
           unitName: parsed.data.unitName || '',
           recordDate: parsed.data.recordDate,
+          orderDate: parsed.data.orderDate,
           amount: total,
           remark: parsed.data.remark,
           items: { create: itemRows },

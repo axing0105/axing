@@ -4,15 +4,25 @@
       <el-tab-pane label="近期流水" name="ledger">
         <div class="filter-card" style="margin-bottom: 14px">
           <el-date-picker
-            v-model="ledgerRange"
-            type="daterange"
+            v-model="ledgerFrom"
+            type="date"
             value-format="YYYY-MM-DD"
-            start-placeholder="开始日期"
-            end-placeholder="结束日期"
+            placeholder="开始日期"
+            clearable
+            style="width: 160px"
+          />
+          <span class="date-sep">至</span>
+          <el-date-picker
+            v-model="ledgerTo"
+            type="date"
+            value-format="YYYY-MM-DD"
+            placeholder="结束日期"
+            clearable
+            style="width: 160px"
           />
           <div class="filter-actions">
             <el-button type="primary" @click="loadLedger">查询</el-button>
-            <el-button @click="onResetLedger">重置</el-button>
+            <el-button @click="onResetLedger">重置（近一个月）</el-button>
             <el-button @click="exportLedger">导出 Excel</el-button>
           </div>
         </div>
@@ -27,19 +37,32 @@
           <el-table-column prop="operator" label="操作人" width="110" />
           <el-table-column prop="remark" label="备注" min-width="140" show-overflow-tooltip />
         </el-table>
-      </el-tab-pane>
 
-      <el-tab-pane label="毛利计算" name="profit">
-        <div class="toolbar">
-          <el-input-number v-model="year" :min="2000" :max="2100" />
-          <el-button type="primary" @click="loadSummary">查询</el-button>
-          <el-button @click="exportProfit">导出 Excel</el-button>
-          <div class="spacer" />
-          <el-tag type="info">入库：￥{{ summary?.inboundTotal ?? 0 }}</el-tag>
-          <el-tag type="success">出库：￥{{ summary?.outboundTotal ?? 0 }}</el-tag>
-          <el-tag type="warning">毛利：￥{{ summary?.grossProfit ?? 0 }}</el-tag>
+        <div class="ledger-summary">
+          <div class="summary-title">本区间汇总</div>
+          <div class="summary-grid">
+            <div class="summary-item">
+              <span class="label">入库数量</span>
+              <span class="value">{{ summary.inboundQty }}</span>
+            </div>
+            <div class="summary-item">
+              <span class="label">入库金额</span>
+              <span class="value">￥{{ summary.inboundAmount.toFixed(2) }}</span>
+            </div>
+            <div class="summary-item">
+              <span class="label">出库数量</span>
+              <span class="value">{{ summary.outboundQty }}</span>
+            </div>
+            <div class="summary-item">
+              <span class="label">出库金额</span>
+              <span class="value">￥{{ summary.outboundAmount.toFixed(2) }}</span>
+            </div>
+            <div class="summary-item accent">
+              <span class="label">毛利利润</span>
+              <span class="value">￥{{ summary.grossProfit.toFixed(2) }}</span>
+            </div>
+          </div>
         </div>
-        <div ref="chartRef" class="chart" />
       </el-tab-pane>
 
       <el-tab-pane label="年底对账" name="yearend">
@@ -54,6 +77,7 @@
           <div class="print-meta">
             <div>入库合计：￥{{ yearEnd?.inboundTotal ?? 0 }}</div>
             <div>出库合计：￥{{ yearEnd?.outboundTotal ?? 0 }}</div>
+            <div>交易笔数：{{ yearEnd?.tradeCountTotal ?? 0 }}</div>
             <div>毛利/差额：￥{{ yearEnd?.balanceDiff ?? 0 }}</div>
           </div>
           <el-table :data="yearEnd?.months || []" border stripe>
@@ -62,6 +86,7 @@
             </el-table-column>
             <el-table-column prop="inbound" label="入库金额" />
             <el-table-column prop="outbound" label="出库金额" />
+            <el-table-column prop="tradeCount" label="交易笔数" />
             <el-table-column prop="grossProfit" label="毛利" />
           </el-table>
         </div>
@@ -71,37 +96,51 @@
 </template>
 
 <script setup lang="ts">
-import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
-import * as echarts from 'echarts'
+import { onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import {
   getFinanceLedger,
-  getFinanceSummary,
   getFinanceYearEnd,
-  type FinanceSummary,
   type LedgerRow,
+  type LedgerSummary,
   type YearEndReport,
 } from '@/api'
 import { downloadExcel } from '@/utils/excel'
 
 const tab = ref('ledger')
-const year = ref(new Date().getFullYear())
 const yearEndYear = ref(new Date().getFullYear())
-const summary = ref<FinanceSummary | null>(null)
 const yearEnd = ref<YearEndReport | null>(null)
 const ledger = ref<LedgerRow[]>([])
-const ledgerRange = ref<[string, string] | null>(defaultRange())
-const chartRef = ref<HTMLDivElement | null>(null)
-let chart: echarts.ECharts | null = null
+const summary = ref<LedgerSummary>({
+  inboundQty: 0,
+  outboundQty: 0,
+  inboundAmount: 0,
+  outboundAmount: 0,
+  grossProfit: 0,
+})
+const ledgerFrom = ref(daysAgoStr(30))
+const ledgerTo = ref(todayStr())
 
-function defaultRange(): [string, string] {
-  const to = new Date()
-  const from = new Date(to.getTime() - 30 * 24 * 60 * 60 * 1000)
-  const fmt = (d: Date) => {
-    const pad = (n: number) => String(n).padStart(2, '0')
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
-  }
-  return [fmt(from), fmt(to)]
+function pad(n: number) {
+  return String(n).padStart(2, '0')
+}
+
+function fmt(d: Date) {
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+}
+
+function todayStr() {
+  return fmt(new Date())
+}
+
+function daysAgoStr(days: number) {
+  return fmt(new Date(Date.now() - days * 24 * 60 * 60 * 1000))
+}
+
+function resolveLedgerRange() {
+  const from = ledgerFrom.value || ledgerTo.value || daysAgoStr(30)
+  const to = ledgerTo.value || ledgerFrom.value || todayStr()
+  return { from, to }
 }
 
 function formatDate(v: string) {
@@ -109,12 +148,21 @@ function formatDate(v: string) {
 }
 
 async function loadLedger() {
-  const [from, to] = ledgerRange.value || defaultRange()
-  ledger.value = await getFinanceLedger({ from, to, limit: 200 })
+  const { from, to } = resolveLedgerRange()
+  const res = await getFinanceLedger({ from, to, limit: 2000 })
+  ledger.value = res.rows || []
+  summary.value = res.summary || {
+    inboundQty: 0,
+    outboundQty: 0,
+    inboundAmount: 0,
+    outboundAmount: 0,
+    grossProfit: 0,
+  }
 }
 
 function onResetLedger() {
-  ledgerRange.value = defaultRange()
+  ledgerFrom.value = daysAgoStr(30)
+  ledgerTo.value = todayStr()
   loadLedger()
 }
 
@@ -123,7 +171,7 @@ function exportLedger() {
     ElMessage.warning('暂无流水可导出')
     return
   }
-  const [from, to] = ledgerRange.value || defaultRange()
+  const { from, to } = resolveLedgerRange()
   downloadExcel(`财务流水_${from}_${to}.xlsx`, [
     {
       name: '近期流水',
@@ -138,32 +186,18 @@ function exportLedger() {
         row.remark || '',
       ]),
     },
-  ])
-  ElMessage.success('已导出 Excel')
-}
-
-function exportProfit() {
-  if (!summary.value?.months?.length) {
-    ElMessage.warning('暂无毛利数据可导出')
-    return
-  }
-  downloadExcel(`毛利计算_${summary.value.year}.xlsx`, [
     {
-      name: '年度汇总',
-      headers: ['年份', '入库合计', '出库合计', '毛利'],
+      name: '区间汇总',
+      headers: ['入库数量', '入库金额', '出库数量', '出库金额', '毛利利润'],
       rows: [
         [
-          summary.value.year,
-          summary.value.inboundTotal,
-          summary.value.outboundTotal,
+          summary.value.inboundQty,
+          summary.value.inboundAmount,
+          summary.value.outboundQty,
+          summary.value.outboundAmount,
           summary.value.grossProfit,
         ],
       ],
-    },
-    {
-      name: '月度明细',
-      headers: ['月份', '入库金额', '出库金额', '毛利'],
-      rows: summary.value.months.map((m) => [m.month, m.inbound, m.outbound, m.grossProfit]),
     },
   ])
   ElMessage.success('已导出 Excel')
@@ -177,57 +211,30 @@ function exportYearEnd() {
   downloadExcel(`年底对账_${yearEnd.value.year}.xlsx`, [
     {
       name: '年度汇总',
-      headers: ['年份', '入库合计', '出库合计', '毛利/差额'],
+      headers: ['年份', '入库合计', '出库合计', '交易笔数', '毛利/差额'],
       rows: [
         [
           yearEnd.value.year,
           yearEnd.value.inboundTotal,
           yearEnd.value.outboundTotal,
+          yearEnd.value.tradeCountTotal ?? 0,
           yearEnd.value.balanceDiff,
         ],
       ],
     },
     {
       name: '月度明细',
-      headers: ['月份', '入库金额', '出库金额', '毛利'],
-      rows: yearEnd.value.months.map((m) => [m.month, m.inbound, m.outbound, m.grossProfit]),
+      headers: ['月份', '入库金额', '出库金额', '交易笔数', '毛利'],
+      rows: yearEnd.value.months.map((m) => [
+        m.month,
+        m.inbound,
+        m.outbound,
+        m.tradeCount,
+        m.grossProfit,
+      ]),
     },
   ])
   ElMessage.success('已导出 Excel')
-}
-
-async function loadSummary() {
-  summary.value = await getFinanceSummary(year.value)
-  await nextTick()
-  if (!chartRef.value) return
-  if (!chart) chart = echarts.init(chartRef.value)
-  chart.setOption({
-    tooltip: { trigger: 'axis' },
-    legend: { data: ['入库', '出库', '毛利'] },
-    grid: { left: 40, right: 20, top: 40, bottom: 30 },
-    xAxis: {
-      type: 'category',
-      data: (summary.value?.months || []).map((m) => `${m.month}月`),
-    },
-    yAxis: { type: 'value' },
-    series: [
-      {
-        name: '入库',
-        type: 'bar',
-        data: (summary.value?.months || []).map((m) => m.inbound),
-      },
-      {
-        name: '出库',
-        type: 'bar',
-        data: (summary.value?.months || []).map((m) => m.outbound),
-      },
-      {
-        name: '毛利',
-        type: 'line',
-        data: (summary.value?.months || []).map((m) => m.grossProfit),
-      },
-    ],
-  })
 }
 
 async function loadYearEnd() {
@@ -238,24 +245,66 @@ function printYearEnd() {
   window.print()
 }
 
-function onResize() {
-  chart?.resize()
-}
-
 onMounted(async () => {
-  await Promise.all([loadLedger(), loadSummary(), loadYearEnd()])
-  window.addEventListener('resize', onResize)
-})
-
-onBeforeUnmount(() => {
-  window.removeEventListener('resize', onResize)
-  chart?.dispose()
+  await Promise.all([loadLedger(), loadYearEnd()])
 })
 </script>
 
 <style scoped>
-.chart {
-  height: 420px;
-  width: 100%;
+.ledger-summary {
+  margin-top: 16px;
+  padding: 16px 18px;
+  border: 1px solid var(--jxc-border, #e5e7eb);
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.summary-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #334155;
+  margin-bottom: 12px;
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(120px, 1fr));
+  gap: 12px;
+}
+
+.summary-item {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.summary-item .label {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.summary-item .value {
+  font-size: 18px;
+  font-weight: 650;
+  color: #0f172a;
+}
+
+.summary-item.accent {
+  border-color: #fbbf24;
+  background: #fffbeb;
+}
+
+.summary-item.accent .value {
+  color: #b45309;
+}
+
+@media (max-width: 900px) {
+  .summary-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 </style>

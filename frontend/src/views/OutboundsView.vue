@@ -2,12 +2,21 @@
   <div>
     <div class="filter-card no-print">
       <el-date-picker
-        v-model="dateRange"
-        type="daterange"
+        v-model="dateFrom"
+        type="date"
         value-format="YYYY-MM-DD"
-        start-placeholder="开始日期"
-        end-placeholder="结束日期"
-        style="width: 280px"
+        placeholder="开始日期"
+        clearable
+        style="width: 160px"
+      />
+      <span class="date-sep">至</span>
+      <el-date-picker
+        v-model="dateTo"
+        type="date"
+        value-format="YYYY-MM-DD"
+        placeholder="结束日期"
+        clearable
+        style="width: 160px"
       />
       <div class="filter-actions">
         <el-button type="primary" @click="load">查询</el-button>
@@ -22,49 +31,49 @@
     </div>
 
     <div class="page-card no-print">
-      <el-table :data="list" stripe row-key="id" @selection-change="onSelectionChange">
+      <el-table
+        :data="detailRows"
+        stripe
+        border
+        row-key="rowKey"
+        @selection-change="onDetailSelectionChange"
+      >
         <el-table-column type="selection" width="48" />
-        <el-table-column type="expand">
+        <el-table-column label="录单日期" width="120" align="center">
+          <template #default="{ row }">{{ formatDate(row.order.recordDate) }}</template>
+        </el-table-column>
+        <el-table-column label="下单日期" width="120" align="center">
+          <template #default="{ row }">{{ formatDate(row.order.orderDate) }}</template>
+        </el-table-column>
+        <el-table-column label="单位名称" min-width="130" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.order.unitName || '-' }}</template>
+        </el-table-column>
+        <el-table-column label="物品名称" min-width="150" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.item.product.name }}</template>
+        </el-table-column>
+        <el-table-column label="货号" min-width="120" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.item.product.sku }}</template>
+        </el-table-column>
+        <el-table-column label="型号" width="120" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.item.product.model || '-' }}</template>
+        </el-table-column>
+        <el-table-column label="单位" width="70" align="center">
+          <template #default="{ row }">{{ row.item.product.unit }}</template>
+        </el-table-column>
+        <el-table-column label="数量" width="80" align="right">
+          <template #default="{ row }">{{ row.item.quantity }}</template>
+        </el-table-column>
+        <el-table-column label="单价" width="100" align="right">
+          <template #default="{ row }">{{ Number(row.item.unitPrice).toFixed(2) }}</template>
+        </el-table-column>
+        <el-table-column label="总价" width="100" align="right">
+          <template #default="{ row }">{{ Number(row.item.amount).toFixed(2) }}</template>
+        </el-table-column>
+        <el-table-column label="操作" width="160" fixed="right" align="center">
           <template #default="{ row }">
-            <el-table :data="row.items" size="small" border>
-              <el-table-column label="物品名称" min-width="140">
-                <template #default="{ row: item }">{{ item.product.name }}</template>
-              </el-table-column>
-              <el-table-column label="货号" min-width="120">
-                <template #default="{ row: item }">{{ item.product.sku }}</template>
-              </el-table-column>
-              <el-table-column label="型号" width="110">
-                <template #default="{ row: item }">{{ item.product.model }}</template>
-              </el-table-column>
-              <el-table-column label="单位" width="70">
-                <template #default="{ row: item }">{{ item.product.unit }}</template>
-              </el-table-column>
-              <el-table-column prop="quantity" label="数量" width="80" />
-              <el-table-column prop="unitPrice" label="单价" width="90" />
-              <el-table-column prop="amount" label="总价" width="90" />
-            </el-table>
-          </template>
-        </el-table-column>
-        <el-table-column prop="orderNo" label="单号" min-width="150" />
-        <el-table-column prop="unitName" label="单位名称" min-width="120">
-          <template #default="{ row }">{{ row.unitName || '-' }}</template>
-        </el-table-column>
-        <el-table-column label="课题组" min-width="120">
-          <template #default="{ row }">{{ row.customer?.name || '-' }}</template>
-        </el-table-column>
-        <el-table-column label="录单日期" width="120">
-          <template #default="{ row }">{{ formatDate(row.recordDate) }}</template>
-        </el-table-column>
-        <el-table-column label="下单日期" width="120">
-          <template #default="{ row }">{{ formatDate(row.orderDate) }}</template>
-        </el-table-column>
-        <el-table-column prop="amount" label="金额" width="100" />
-        <el-table-column prop="remark" label="备注" min-width="120" show-overflow-tooltip />
-        <el-table-column label="操作" width="180" fixed="right">
-          <template #default="{ row }">
-            <el-button link @click="openEdit(row)">编辑</el-button>
-            <el-button link @click="openPrint(row)">打印</el-button>
-            <el-button link type="danger" @click="onDelete(row)">删除</el-button>
+            <el-button link @click="openEdit(row.order)">编辑</el-button>
+            <el-button link @click="openPrint(row.order)">打印</el-button>
+            <el-button link type="danger" @click="onDelete(row.order)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -82,8 +91,19 @@
           <el-input v-model="unitName" style="width: 180px" placeholder="开单单位" />
         </el-form-item>
         <el-form-item label="课题组">
-          <el-select v-model="customerId" filterable placeholder="选择课题组" style="width: 180px">
-            <el-option v-for="c in customers" :key="c.id" :label="c.name" :value="c.id" />
+          <el-select
+            v-model="customerId"
+            filterable
+            placeholder="选择课题组"
+            style="width: 220px"
+            @change="onCustomerChange"
+          >
+            <el-option
+              v-for="c in customers"
+              :key="c.id"
+              :label="c.unitName ? `${c.name}（${c.unitName}）` : c.name"
+              :value="c.id"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="录单日期">
@@ -197,7 +217,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   createOutbound,
@@ -207,6 +227,7 @@ import {
   listProducts,
   updateOutbound,
   type Customer,
+  type OrderItem,
   type OutboundOrder,
   type Product,
 } from '@/api'
@@ -224,10 +245,17 @@ type Line = {
   amount: number
 }
 
+type DetailRow = {
+  rowKey: string
+  order: OutboundOrder
+  item: OrderItem
+}
+
 const store = useUserStore()
 const list = ref<OutboundOrder[]>([])
 const selectedIds = ref<string[]>([])
-const dateRange = ref<[string, string] | null>(null)
+const dateFrom = ref('')
+const dateTo = ref('')
 const customers = ref<Customer[]>([])
 const formVisible = ref(false)
 const printVisible = ref(false)
@@ -240,6 +268,16 @@ const recordDate = ref(today())
 const orderDate = ref(today())
 const lines = ref<Line[]>([])
 const printOrder = ref<OutboundOrder | null>(null)
+
+const detailRows = computed<DetailRow[]>(() =>
+  list.value.flatMap((order) =>
+    order.items.map((item) => ({
+      rowKey: `${order.id}-${item.id}`,
+      order,
+      item,
+    })),
+  ),
+)
 
 function today() {
   const d = new Date()
@@ -280,7 +318,7 @@ function applyProduct(row: Line, p: Product) {
   row.sku = p.sku
   row.model = p.model
   row.unit = p.unit
-  row.unitPrice = Number(p.unitPrice)
+  // 出库仅回填基础信息，数量/单价由人工填写
   recalc(row)
 }
 
@@ -292,22 +330,34 @@ async function querySku(q: string, cb: (rows: Product[]) => void) {
   cb(await listProducts({ q: q || undefined }))
 }
 
-async function load() {
-  const [from, to] = dateRange.value || []
-  list.value = await listOutbounds({
+function resolveDateQuery() {
+  const from = dateFrom.value || dateTo.value || ''
+  const to = dateTo.value || dateFrom.value || ''
+  return {
     from: from || undefined,
     to: to || undefined,
-  })
+  }
+}
+
+async function load() {
+  list.value = await listOutbounds(resolveDateQuery())
   selectedIds.value = []
 }
 
 function onReset() {
-  dateRange.value = null
+  dateFrom.value = ''
+  dateTo.value = ''
   load()
 }
 
-function onSelectionChange(rows: OutboundOrder[]) {
-  selectedIds.value = rows.map((r) => r.id)
+function onDetailSelectionChange(rows: DetailRow[]) {
+  selectedIds.value = [...new Set(rows.map((r) => r.order.id))]
+}
+
+function onCustomerChange(id: string) {
+  const c = customers.value.find((item) => item.id === id)
+  if (c?.unitName) unitName.value = c.unitName
+  else if (!unitName.value) unitName.value = store.user?.companyName || ''
 }
 
 async function openCreate() {
@@ -428,11 +478,9 @@ function onExport() {
   for (const order of rows) {
     for (const item of order.items) {
       detailRows.push([
-        order.orderNo,
-        order.unitName || '',
-        order.customer?.name || '',
         formatDate(order.recordDate),
         formatDate(order.orderDate),
+        order.unitName || '',
         item.product.name,
         item.product.sku,
         item.product.model,
@@ -440,7 +488,6 @@ function onExport() {
         item.quantity,
         item.unitPrice,
         item.amount,
-        order.remark || '',
       ])
     }
   }
@@ -448,11 +495,9 @@ function onExport() {
     {
       name: '出库明细',
       headers: [
-        '单号',
-        '单位名称',
-        '课题组',
         '录单日期',
         '下单日期',
+        '单位名称',
         '物品名称',
         '货号',
         '型号',
@@ -460,7 +505,6 @@ function onExport() {
         '数量',
         '单价',
         '总价',
-        '备注',
       ],
       rows: detailRows,
     },

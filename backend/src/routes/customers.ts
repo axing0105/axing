@@ -9,6 +9,7 @@ router.use(authRequired)
 
 const customerSchema = z.object({
   name: z.string().min(1, '课题组名称必填'),
+  unitName: z.string().optional().default(''),
   phone: z.string().optional().default(''),
   address: z.string().optional().default(''),
   remark: z.string().optional().default(''),
@@ -19,7 +20,11 @@ router.get('/', async (req, res) => {
   const customers = await prisma.customer.findMany({
     where: q
       ? {
-          OR: [{ name: { contains: q } }, { phone: { contains: q } }],
+          OR: [
+            { name: { contains: q } },
+            { unitName: { contains: q } },
+            { phone: { contains: q } },
+          ],
         }
       : undefined,
     orderBy: { updatedAt: 'desc' },

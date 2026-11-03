@@ -33,7 +33,7 @@ const router = createRouter({
         {
           path: 'finance',
           component: () => import('@/views/FinanceView.vue'),
-          meta: { title: '财务统计', desc: '查看近期流水、毛利计算与年底对账。', admin: true },
+          meta: { title: '财务统计', desc: '查看近一个月流水汇总与年底对账。', admin: true },
         },
         {
           path: 'invoices',

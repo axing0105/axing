@@ -3,7 +3,7 @@
     <div class="filter-card">
       <el-input
         v-model="keyword"
-        placeholder="搜索课题组/电话"
+        placeholder="搜索课题组/单位/电话"
         clearable
         style="width: 240px"
         @keyup.enter="load"
@@ -22,6 +22,9 @@
       <el-table :data="list" stripe>
         <el-table-column type="index" width="50" />
         <el-table-column prop="name" label="课题组" min-width="140" />
+        <el-table-column prop="unitName" label="单位" min-width="140">
+          <template #default="{ row }">{{ row.unitName || '-' }}</template>
+        </el-table-column>
         <el-table-column prop="phone" label="电话" min-width="120" />
         <el-table-column prop="address" label="地址" min-width="180" show-overflow-tooltip />
         <el-table-column prop="remark" label="备注" min-width="140" show-overflow-tooltip />
@@ -37,6 +40,7 @@
     <el-dialog v-model="visible" :title="form.id ? '编辑课题组' : '新增课题组'" width="520px">
       <el-form label-width="90px">
         <el-form-item label="课题组"><el-input v-model="form.name" /></el-form-item>
+        <el-form-item label="单位"><el-input v-model="form.unitName" placeholder="所属单位/开票单位" /></el-form-item>
         <el-form-item label="电话"><el-input v-model="form.phone" /></el-form-item>
         <el-form-item label="地址"><el-input v-model="form.address" /></el-form-item>
         <el-form-item label="备注"><el-input v-model="form.remark" type="textarea" /></el-form-item>
@@ -58,7 +62,7 @@ const list = ref<Customer[]>([])
 const keyword = ref('')
 const visible = ref(false)
 const saving = ref(false)
-const form = reactive({ id: '', name: '', phone: '', address: '', remark: '' })
+const form = reactive({ id: '', name: '', unitName: '', phone: '', address: '', remark: '' })
 
 async function load() {
   list.value = await listCustomers(keyword.value)
@@ -72,6 +76,7 @@ function onReset() {
 function openEdit(row?: Customer) {
   form.id = row?.id || ''
   form.name = row?.name || ''
+  form.unitName = row?.unitName || ''
   form.phone = row?.phone || ''
   form.address = row?.address || ''
   form.remark = row?.remark || ''
@@ -79,9 +84,19 @@ function openEdit(row?: Customer) {
 }
 
 async function onSave() {
+  if (!form.name.trim()) {
+    ElMessage.warning('请填写课题组名称')
+    return
+  }
   saving.value = true
   try {
-    const payload = { name: form.name, phone: form.phone, address: form.address, remark: form.remark }
+    const payload = {
+      name: form.name,
+      unitName: form.unitName,
+      phone: form.phone,
+      address: form.address,
+      remark: form.remark,
+    }
     if (form.id) await updateCustomer(form.id, payload)
     else await createCustomer(payload)
     ElMessage.success('已保存')

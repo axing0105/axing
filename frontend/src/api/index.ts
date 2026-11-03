@@ -57,7 +57,7 @@ export const getFinanceSummary = (year: number) =>
 export const getFinance = getFinanceSummary
 
 export const getFinanceLedger = (params?: { from?: string; to?: string; limit?: number }) =>
-  http.get('/finance/ledger', { params }) as Promise<LedgerRow[]>
+  http.get('/finance/ledger', { params }) as Promise<LedgerResult>
 
 export const getFinanceYearEnd = (year: number) =>
   http.get('/finance/year-end', { params: { year } }) as Promise<YearEndReport>
@@ -93,6 +93,7 @@ export type Product = {
 export type Customer = {
   id: string
   name: string
+  unitName: string
   phone: string
   address: string
   remark: string
@@ -111,6 +112,7 @@ export type InboundOrder = {
   orderNo: string
   unitName?: string
   recordDate: string
+  orderDate: string
   amount: number
   remark: string
   createdAt: string
@@ -148,8 +150,15 @@ export type FinanceSummary = {
   year: number
   inboundTotal: number
   outboundTotal: number
+  tradeCountTotal?: number
   grossProfit: number
-  months: { month: number; inbound: number; outbound: number; grossProfit: number }[]
+  months: {
+    month: number
+    inbound: number
+    outbound: number
+    tradeCount: number
+    grossProfit: number
+  }[]
 }
 
 export type LedgerRow = {
@@ -162,6 +171,19 @@ export type LedgerRow = {
   amount: number
   remark: string
   operator: string
+}
+
+export type LedgerSummary = {
+  inboundQty: number
+  outboundQty: number
+  inboundAmount: number
+  outboundAmount: number
+  grossProfit: number
+}
+
+export type LedgerResult = {
+  rows: LedgerRow[]
+  summary: LedgerSummary
 }
 
 export type YearEndReport = FinanceSummary & {

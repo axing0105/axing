@@ -90,6 +90,12 @@ a {
   gap: 12px;
 }
 
+.filter-card .date-sep {
+  color: #64748b;
+  font-size: 13px;
+  padding: 0 2px;
+}
+
 .filter-card .filter-actions {
   margin-left: auto;
   display: flex;

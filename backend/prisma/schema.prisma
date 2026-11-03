@@ -46,6 +46,7 @@ model Product {
 model Customer {
   id        String          @id @default(cuid())
   name      String
+  unitName  String          @default("")
   phone     String          @default("")
   address   String          @default("")
   remark    String          @db.Text
@@ -59,6 +60,7 @@ model InboundOrder {
   orderNo    String        @unique
   unitName   String        @default("")
   recordDate DateTime      @default(now())
+  orderDate  DateTime      @default(now())
   amount     Decimal       @db.Decimal(14, 2)
   remark     String        @db.Text
   operatorId String
