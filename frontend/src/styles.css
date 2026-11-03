@@ -1,0 +1,231 @@
+:root {
+  --jxc-primary: #d9363e;
+  --jxc-primary-hover: #c42f36;
+  --jxc-primary-soft: #fff1f0;
+  --jxc-bg: #f0f2f5;
+  --jxc-sidebar: #1e2a3a;
+  --jxc-sidebar-hover: #263447;
+  --jxc-sidebar-text: #c5ced9;
+  --jxc-sidebar-title: #e8edf3;
+  --jxc-surface: #ffffff;
+  --jxc-text: #1f1f1f;
+  --jxc-muted: #8c8c8c;
+  --jxc-line: #f0f0f0;
+  --jxc-border: #e8e8e8;
+  --jxc-radius: 6px;
+  --jxc-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  --jxc-font: "Noto Sans SC", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+
+  --el-color-primary: #d9363e;
+  --el-color-primary-light-3: #e3646a;
+  --el-color-primary-light-5: #eb9196;
+  --el-color-primary-light-7: #f3bfc2;
+  --el-color-primary-light-8: #f7d4d6;
+  --el-color-primary-light-9: #fff1f0;
+  --el-color-primary-dark-2: #c42f36;
+  --el-border-radius-base: 4px;
+  --el-font-family: var(--jxc-font);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  margin: 0;
+  height: 100%;
+  font-family: var(--jxc-font);
+  color: var(--jxc-text);
+  background: var(--jxc-bg);
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.page-shell {
+  animation: fade-in 0.2s ease;
+}
+
+.page-header {
+  margin-bottom: 16px;
+}
+
+.page-header h1 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  color: #1f1f1f;
+  line-height: 1.3;
+}
+
+.page-header p {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: var(--jxc-muted);
+  line-height: 1.6;
+}
+
+.page-card {
+  background: var(--jxc-surface);
+  border: 1px solid var(--jxc-border);
+  border-radius: 8px;
+  padding: 16px 18px;
+  box-shadow: var(--jxc-shadow);
+}
+
+.filter-card {
+  background: #fff;
+  border: 1px solid var(--jxc-border);
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin-bottom: 12px;
+  box-shadow: var(--jxc-shadow);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.filter-card .filter-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+}
+
+.action-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 0 12px;
+}
+
+.action-row .spacer {
+  flex: 1;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 14px;
+  align-items: center;
+}
+
+.toolbar .spacer {
+  flex: 1;
+}
+
+.el-table {
+  --el-table-header-bg-color: #fafafa;
+  --el-table-header-text-color: #595959;
+  --el-table-row-hover-bg-color: #fff7f7;
+  --el-table-border-color: #f0f0f0;
+  --el-table-striped-bg-color: #fffafa;
+}
+
+.el-table th.el-table__cell {
+  font-weight: 600;
+}
+
+.el-table .el-button.is-link {
+  color: #8a6a5a;
+  font-weight: 500;
+}
+
+.el-table .el-button.is-link.el-button--danger {
+  color: #d9363e;
+}
+
+.el-table .el-button.is-link.el-button--primary {
+  color: #8a6a5a;
+}
+
+.el-table .el-button.is-link:hover {
+  color: #d9363e;
+}
+
+.el-button--primary {
+  --el-button-bg-color: var(--jxc-primary);
+  --el-button-border-color: var(--jxc-primary);
+  --el-button-hover-bg-color: var(--jxc-primary-hover);
+  --el-button-hover-border-color: var(--jxc-primary-hover);
+}
+
+.el-dialog {
+  border-radius: 8px !important;
+}
+
+.el-dialog__header {
+  margin-right: 0;
+  border-bottom: 1px solid var(--jxc-line);
+  padding-bottom: 12px;
+}
+
+.el-tabs__item.is-active {
+  color: var(--jxc-primary) !important;
+  font-weight: 600;
+}
+
+.el-tabs__active-bar {
+  background-color: var(--jxc-primary);
+}
+
+.el-menu {
+  border-right: none !important;
+}
+
+.el-pagination.is-background .el-pager li.is-active {
+  background-color: var(--jxc-primary) !important;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.print-sheet {
+  color: #111;
+}
+
+.print-sheet h2 {
+  margin: 0 0 12px;
+  text-align: center;
+}
+
+.print-meta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 16px;
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+
+@media print {
+  body * {
+    visibility: hidden !important;
+  }
+  .print-sheet,
+  .print-sheet * {
+    visibility: visible !important;
+  }
+  .print-sheet {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    padding: 24px;
+  }
+  .no-print {
+    display: none !important;
+  }
+}

@@ -1,0 +1,120 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  STAFF
+}
+
+model User {
+  id           String          @id @default(cuid())
+  username     String          @unique
+  passwordHash String
+  name         String
+  companyName  String          @default("")
+  role         Role            @default(STAFF)
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  inbounds     InboundOrder[]
+  outbounds    OutboundOrder[]
+}
+
+model Product {
+  id            String         @id @default(cuid())
+  name          String
+  sku           String         @unique
+  brand         String         @default("")
+  model         String         @default("")
+  unit          String         @default("件")
+  unitPrice     Decimal        @db.Decimal(12, 2)
+  remark        String         @db.Text
+  stock         Int            @default(0)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  inboundItems  InboundItem[]
+  outboundItems OutboundItem[]
+
+  @@index([brand])
+}
+
+model Customer {
+  id        String          @id @default(cuid())
+  name      String
+  phone     String          @default("")
+  address   String          @default("")
+  remark    String          @db.Text
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  outbounds OutboundOrder[]
+}
+
+model InboundOrder {
+  id         String        @id @default(cuid())
+  orderNo    String        @unique
+  unitName   String        @default("")
+  recordDate DateTime      @default(now())
+  amount     Decimal       @db.Decimal(14, 2)
+  remark     String        @db.Text
+  operatorId String
+  operator   User          @relation(fields: [operatorId], references: [id])
+  createdAt  DateTime      @default(now())
+  items      InboundItem[]
+}
+
+model InboundItem {
+  id        String       @id @default(cuid())
+  orderId   String
+  order     InboundOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product      @relation(fields: [productId], references: [id])
+  quantity  Int
+  unitPrice Decimal      @db.Decimal(12, 2)
+  amount    Decimal      @db.Decimal(14, 2)
+}
+
+model OutboundOrder {
+  id         String         @id @default(cuid())
+  orderNo    String         @unique
+  unitName   String         @default("")
+  recordDate DateTime       @default(now())
+  orderDate  DateTime       @default(now())
+  customerId String
+  customer   Customer       @relation(fields: [customerId], references: [id])
+  amount     Decimal        @db.Decimal(14, 2)
+  remark     String         @db.Text
+  operatorId String
+  operator   User           @relation(fields: [operatorId], references: [id])
+  createdAt  DateTime       @default(now())
+  items      OutboundItem[]
+}
+
+model OutboundItem {
+  id        String        @id @default(cuid())
+  orderId   String
+  order     OutboundOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product       @relation(fields: [productId], references: [id])
+  quantity  Int
+  unitPrice Decimal       @db.Decimal(12, 2)
+  amount    Decimal       @db.Decimal(14, 2)
+}
+
+model Invoice {
+  id            String   @id @default(cuid())
+  invoiceTime   DateTime
+  invoiceUnit   String
+  amount        Decimal  @db.Decimal(14, 2)
+  invoiceNo     String   @unique
+  researchGroup String   @default("")
+  paid          Boolean  @default(false)
+  contact       String   @default("")
+  remark        String   @db.Text
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
