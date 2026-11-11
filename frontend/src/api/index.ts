@@ -104,6 +104,7 @@ export type Product = {
 export type Customer = {
   id: string
   name: string
+  contactName: string
   unitName: string
   phone: string
   address: string

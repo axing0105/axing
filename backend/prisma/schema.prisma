@@ -64,17 +64,18 @@ model Product {
 }
 
 model Customer {
-  id        String          @id @default(cuid())
-  tenantId  String
-  tenant    Tenant          @relation(fields: [tenantId], references: [id])
-  name      String
-  unitName  String          @default("")
-  phone     String          @default("")
-  address   String          @default("")
-  remark    String          @db.Text
-  createdAt DateTime        @default(now())
-  updatedAt DateTime        @updatedAt
-  outbounds OutboundOrder[]
+  id          String          @id @default(cuid())
+  tenantId    String
+  tenant      Tenant          @relation(fields: [tenantId], references: [id])
+  name        String
+  contactName String          @default("")
+  unitName    String          @default("")
+  phone       String          @default("")
+  address     String          @default("")
+  remark      String          @db.Text
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  outbounds   OutboundOrder[]
 
   @@index([tenantId])
 }

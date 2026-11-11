@@ -8,3 +8,5 @@ frontend/dist/
 docker-images/*.tar
 *.pem
 *.key
+
+.tmp-voucher/

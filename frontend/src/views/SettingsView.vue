@@ -6,14 +6,20 @@
           <el-form-item label="单位名称">
             <el-input v-model="form.companyName" placeholder="用于打印单据抬头" />
           </el-form-item>
-          <el-form-item label="联系人">
-            <el-input v-model="form.contact" />
+          <el-form-item label="经手人">
+            <el-input v-model="form.contact" placeholder="打印出库单经手人，可留空则用开单人" />
           </el-form-item>
           <el-form-item label="联系电话">
-            <el-input v-model="form.phone" />
+            <el-input v-model="form.phone" placeholder="打印出库单页脚联系电话" />
+          </el-form-item>
+          <el-form-item label="QQ">
+            <el-input v-model="form.qq" placeholder="打印出库单页脚 QQ" />
           </el-form-item>
           <el-form-item label="单位地址">
             <el-input v-model="form.address" />
+          </el-form-item>
+          <el-form-item label="默认仓库">
+            <el-input v-model="form.defaultWarehouse" placeholder="如：1102室" style="width: 200px" />
           </el-form-item>
           <el-form-item label="默认单位">
             <el-input v-model="form.defaultUnit" placeholder="如：件" style="width: 160px" />
@@ -132,7 +138,9 @@ type SystemSettings = {
   companyName: string
   contact: string
   phone: string
+  qq: string
   address: string
+  defaultWarehouse: string
   defaultUnit: string
   remark: string
   aboutTitle: string
@@ -149,10 +157,12 @@ type SystemSettings = {
 }
 
 const defaults: SystemSettings = {
-  companyName: '研物通',
+  companyName: '四川信标生物科技有限公司',
   contact: '',
   phone: '',
+  qq: '',
   address: '',
+  defaultWarehouse: '',
   defaultUnit: '件',
   remark: '',
   aboutTitle: '关于研物通',
@@ -199,7 +209,9 @@ function onResetBasic() {
   form.companyName = defaults.companyName
   form.contact = defaults.contact
   form.phone = defaults.phone
+  form.qq = defaults.qq
   form.address = defaults.address
+  form.defaultWarehouse = defaults.defaultWarehouse
   form.defaultUnit = defaults.defaultUnit
   form.remark = defaults.remark
   onSave()

@@ -39,14 +39,20 @@
         @selection-change="onDetailSelectionChange"
       >
         <el-table-column type="selection" width="48" />
+        <el-table-column label="出库日期" width="120" align="center">
+          <template #default="{ row }">{{ formatDate(row.order.orderDate) }}</template>
+        </el-table-column>
         <el-table-column label="录单日期" width="120" align="center">
           <template #default="{ row }">{{ formatDate(row.order.recordDate) }}</template>
         </el-table-column>
-        <el-table-column label="下单日期" width="120" align="center">
-          <template #default="{ row }">{{ formatDate(row.order.orderDate) }}</template>
+        <el-table-column label="客户单位" min-width="130" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.order.customer?.unitName || row.order.unitName || '-' }}</template>
         </el-table-column>
-        <el-table-column label="单位名称" min-width="130" show-overflow-tooltip>
-          <template #default="{ row }">{{ row.order.unitName || '-' }}</template>
+        <el-table-column label="课题组" min-width="110" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.order.customer?.name || '-' }}</template>
+        </el-table-column>
+        <el-table-column label="经手人" width="90" align="center">
+          <template #default="{ row }">{{ row.order.operator?.name || '-' }}</template>
         </el-table-column>
         <el-table-column label="物品名称" min-width="150" show-overflow-tooltip>
           <template #default="{ row }">{{ row.item.product.name }}</template>
@@ -87,8 +93,8 @@
       class="no-print"
     >
       <el-form label-width="90px" inline>
-        <el-form-item label="单位名称">
-          <el-input v-model="unitName" style="width: 180px" placeholder="开单单位" />
+        <el-form-item label="客户单位">
+          <el-input v-model="unitName" style="width: 180px" placeholder="客户单位" />
         </el-form-item>
         <el-form-item label="课题组">
           <el-select
@@ -106,11 +112,11 @@
             />
           </el-select>
         </el-form-item>
+        <el-form-item label="出库日期">
+          <el-date-picker v-model="orderDate" type="date" value-format="YYYY-MM-DD" />
+        </el-form-item>
         <el-form-item label="录单日期">
           <el-date-picker v-model="recordDate" type="date" value-format="YYYY-MM-DD" />
-        </el-form-item>
-        <el-form-item label="下单日期">
-          <el-date-picker v-model="orderDate" type="date" value-format="YYYY-MM-DD" />
         </el-form-item>
         <el-form-item label="备注">
           <el-input v-model="remark" style="width: 220px" />
@@ -177,36 +183,116 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="printVisible" title="出库单打印" width="760px" class="no-print">
-      <div v-if="printOrder" class="print-sheet" id="outbound-print">
-        <h2>出库单</h2>
-        <div class="print-meta">
-          <div>单号：{{ printOrder.orderNo }}</div>
-          <div>单位名称：{{ printOrder.unitName || '-' }}</div>
-          <div>课题组：{{ printOrder.customer?.name }}</div>
-          <div>录单日期：{{ formatDate(printOrder.recordDate) }}</div>
-          <div>下单日期：{{ formatDate(printOrder.orderDate) }}</div>
-          <div>金额：￥{{ printOrder.amount }}</div>
-          <div>操作人：{{ printOrder.operator?.name }}</div>
-          <div style="grid-column: 1 / -1">备注：{{ printOrder.remark || '-' }}</div>
+    <el-dialog v-model="printVisible" title="出库单打印" width="960px" top="3vh" class="print-dialog no-print-chrome">
+      <!-- 严格按纸质样张：标题、四行抬头、十列明细、联系方式、重要提示、签字 -->
+      <div v-if="printOrder" class="print-sheet voucher-sheet" id="outbound-print">
+        <div class="voucher-title-row">
+          <div class="voucher-company">{{ printCompanyName }}</div>
+          <div class="voucher-doctype">出库单</div>
         </div>
-        <el-table :data="printOrder.items" border size="small">
-          <el-table-column label="物品名称">
-            <template #default="{ row }">{{ row.product.name }}</template>
-          </el-table-column>
-          <el-table-column label="货号">
-            <template #default="{ row }">{{ row.product.sku }}</template>
-          </el-table-column>
-          <el-table-column label="型号">
-            <template #default="{ row }">{{ row.product.model }}</template>
-          </el-table-column>
-          <el-table-column label="单位" width="70">
-            <template #default="{ row }">{{ row.product.unit }}</template>
-          </el-table-column>
-          <el-table-column prop="quantity" label="数量" width="80" />
-          <el-table-column prop="unitPrice" label="单价" width="90" />
-          <el-table-column prop="amount" label="总价" width="90" />
-        </el-table>
+
+        <table class="voucher-meta">
+          <colgroup>
+            <col style="width: 17%" />
+            <col style="width: 33%" />
+            <col style="width: 17%" />
+            <col style="width: 33%" />
+          </colgroup>
+          <tbody>
+            <tr>
+              <td class="lab">出库日期:</td>
+              <td class="val">{{ formatPrintDate(printOrder.orderDate || printOrder.recordDate) }}</td>
+              <td class="lab">单据编号:</td>
+              <td class="val">{{ printOrder.orderNo }}</td>
+            </tr>
+            <tr>
+              <td class="lab">客户单位:</td>
+              <td class="val">{{ printCustomerUnit }}</td>
+              <td class="lab">客户姓名:</td>
+              <td class="val">{{ printContactName }}</td>
+            </tr>
+            <tr>
+              <td class="lab">客户地址:</td>
+              <td class="val">{{ printOrder.customer?.address || '' }}</td>
+              <td class="lab">客户电话:</td>
+              <td class="val">{{ printOrder.customer?.phone || '' }}</td>
+            </tr>
+            <tr>
+              <td class="lab">课题组:</td>
+              <td class="val">{{ printResearchGroup }}</td>
+              <td class="lab">经手人:</td>
+              <td class="val">{{ printHandler }}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <table class="voucher-items">
+          <colgroup>
+            <col style="width: 5%" />
+            <col style="width: 10%" />
+            <col style="width: 36%" />
+            <col style="width: 7%" />
+            <col style="width: 7%" />
+            <col style="width: 7%" />
+            <col style="width: 7%" />
+            <col style="width: 7%" />
+            <col style="width: 7%" />
+            <col style="width: 7%" />
+          </colgroup>
+          <thead>
+            <tr>
+              <th>行号</th>
+              <th>商品编号</th>
+              <th>商品名称</th>
+              <th>规格</th>
+              <th>单位</th>
+              <th>数量</th>
+              <th>单价</th>
+              <th>金额</th>
+              <th>仓库</th>
+              <th>备注</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(row, idx) in printItemRows" :key="row.key">
+              <td class="c">{{ row.empty ? '' : idx + 1 }}</td>
+              <td class="c">{{ row.empty ? '' : row.sku }}</td>
+              <td class="name">{{ row.empty ? '' : row.name }}</td>
+              <td class="c">{{ row.empty ? '' : row.model }}</td>
+              <td class="c">{{ row.empty ? '' : row.unit }}</td>
+              <td class="c">{{ row.empty ? '' : row.quantity }}</td>
+              <td class="c">{{ row.empty ? '' : row.unitPrice }}</td>
+              <td class="c">{{ row.empty ? '' : row.amount }}</td>
+              <td class="c">{{ row.empty ? '' : row.warehouse }}</td>
+              <td class="c"></td>
+            </tr>
+            <tr class="voucher-subtotal">
+              <td colspan="5">本页小计: (小写) {{ formatMoney(printOrder.amount) }}</td>
+              <td colspan="5">本页小计: (大写) {{ amountToChinese(printOrder.amount) }}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <table class="voucher-contact-table">
+          <tbody>
+            <tr>
+              <td class="contact">
+                公司联系方式: {{ printPhone }}
+                <span class="qq">QQ: {{ printQq }}</span>
+              </td>
+            </tr>
+            <tr>
+              <td class="tips">
+                重要提示: 如发现包装/发票/说明书/出库单等有问题，请于24小时内与我们联系；产品质量问题请在30天内与我们联系，逾期不提出，视为产品合格
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="voucher-sign-row">
+          <span>客户签字:</span>
+          <span>签收日期:</span>
+        </div>
       </div>
       <template #footer>
         <el-button class="no-print" @click="printVisible = false">关闭</el-button>
@@ -231,8 +317,28 @@ import {
   type OutboundOrder,
   type Product,
 } from '@/api'
+import { amountToChinese } from '@/utils/amountChinese'
 import { downloadExcel } from '@/utils/excel'
 import { useUserStore } from '@/stores/user'
+
+type PrintSettings = {
+  companyName?: string
+  contact?: string
+  phone?: string
+  qq?: string
+  defaultWarehouse?: string
+  handler?: string
+}
+
+function readPrintSettings(): PrintSettings {
+  try {
+    const raw = localStorage.getItem('jxc_system_settings')
+    if (!raw) return {}
+    return JSON.parse(raw) as PrintSettings
+  } catch {
+    return {}
+  }
+}
 
 type Line = {
   productId: string
@@ -268,6 +374,74 @@ const recordDate = ref(today())
 const orderDate = ref(today())
 const lines = ref<Line[]>([])
 const printOrder = ref<OutboundOrder | null>(null)
+const printSettings = ref<PrintSettings>({})
+
+const printCompanyName = computed(
+  () =>
+    printSettings.value.companyName?.trim() ||
+    store.user?.companyName?.trim() ||
+    printOrder.value?.unitName?.trim() ||
+    '四川信标生物科技有限公司',
+)
+const printCustomerUnit = computed(
+  () =>
+    printOrder.value?.customer?.unitName?.trim() ||
+    printOrder.value?.unitName?.trim() ||
+    '',
+)
+/** 模板「客户姓名」 */
+const printContactName = computed(() => printOrder.value?.customer?.contactName?.trim() || '')
+/** 模板「课题组」 */
+const printResearchGroup = computed(() => printOrder.value?.customer?.name?.trim() || '')
+/** 模板「经手人」：设置优先，否则开单人 */
+const printHandler = computed(
+  () =>
+    printSettings.value.handler?.trim() ||
+    printSettings.value.contact?.trim() ||
+    printOrder.value?.operator?.name?.trim() ||
+    store.user?.name?.trim() ||
+    '',
+)
+const printPhone = computed(
+  () => printSettings.value.phone?.trim() || '028-63916527',
+)
+const printQq = computed(() => printSettings.value.qq?.trim() || '1641192432')
+const printWarehouse = computed(
+  () => printSettings.value.defaultWarehouse?.trim() || '-',
+)
+
+/** 明细至少 5 行，对齐样张留白 */
+const printItemRows = computed(() => {
+  const warehouse = printWarehouse.value
+  const items = printOrder.value?.items || []
+  const rows = items.map((item, idx) => ({
+    key: item.id || `i-${idx}`,
+    empty: false,
+    sku: item.product.sku || '-',
+    name: item.product.name,
+    model: item.product.model || '-',
+    unit: item.product.unit,
+    quantity: item.quantity,
+    unitPrice: formatMoney(item.unitPrice),
+    amount: formatMoney(item.amount),
+    warehouse,
+  }))
+  while (rows.length < 5) {
+    rows.push({
+      key: `empty-${rows.length}`,
+      empty: true,
+      sku: '',
+      name: '',
+      model: '',
+      unit: '',
+      quantity: '' as unknown as number,
+      unitPrice: '',
+      amount: '',
+      warehouse: '',
+    })
+  }
+  return rows
+})
 
 const detailRows = computed<DetailRow[]>(() =>
   list.value.flatMap((order) =>
@@ -288,6 +462,15 @@ function today() {
 function formatDate(v: string) {
   if (!v) return ''
   return new Date(v).toLocaleDateString()
+}
+
+/** 打印用日期：与 Word 模板一致 YYYY-MM-DD */
+function formatPrintDate(v: string) {
+  if (!v) return ''
+  const d = new Date(v)
+  if (Number.isNaN(d.getTime())) return String(v).slice(0, 10)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 }
 
 function emptyLine(): Line {
@@ -397,13 +580,79 @@ function addLine() {
   lines.value.push(emptyLine())
 }
 
+function formatMoney(v: number | string) {
+  const n = Number(v)
+  if (!Number.isFinite(n)) return ''
+  return Number.isInteger(n) ? String(n) : n.toFixed(2)
+}
+
 function openPrint(row: OutboundOrder) {
+  printSettings.value = readPrintSettings()
   printOrder.value = row
   printVisible.value = true
 }
 
 function doPrint() {
-  window.print()
+  const sheet = document.getElementById('outbound-print')
+  if (!sheet) {
+    ElMessage.warning('没有可打印内容')
+    return
+  }
+  const win = window.open('', '_blank', 'noopener,noreferrer,width=960,height=720')
+  if (!win) {
+    window.print()
+    return
+  }
+  const css = `
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #fff; }
+    body { padding: 10mm 8mm; color: #000;
+      font-family: "宋体", SimSun, "Songti SC", "Noto Serif SC", serif; }
+    .voucher-sheet { width: 100%; }
+    .voucher-title-row { display: grid; grid-template-columns: 1fr auto; align-items: end;
+      margin: 0 0 12px; padding: 0 2% 0 8%; }
+    .voucher-company { text-align: center; font-size: 18pt; font-weight: 700; letter-spacing: 1px; }
+    .voucher-doctype { font-size: 18pt; font-weight: 700; padding-left: 18px; white-space: nowrap; }
+    .voucher-meta, .voucher-items, .voucher-contact-table { width: 100%; border-collapse: collapse;
+      table-layout: fixed; border: 1px solid #000; }
+    .voucher-meta td, .voucher-items th, .voucher-items td, .voucher-contact-table td {
+      border: 1px solid #000; padding: 4px 6px; font-size: 10.5pt; line-height: 1.35;
+      vertical-align: middle; white-space: normal; word-break: break-word; overflow-wrap: anywhere; }
+    .voucher-meta tr { height: 32px; }
+    .voucher-meta td.lab { text-align: left; font-weight: 700; }
+    .voucher-meta td.val { text-align: left; font-weight: 400; }
+    .voucher-items { margin-top: 32px; }
+    .voucher-items th { text-align: center; font-weight: 700; height: 30px; }
+    .voucher-items tbody tr:not(.voucher-subtotal) { height: 38px; }
+    .voucher-items td.c { text-align: center; }
+    .voucher-items td.name { text-align: left; }
+    .voucher-subtotal td { text-align: left; height: 34px; }
+    .voucher-contact-table { margin-top: 32px; }
+    .voucher-contact-table td.contact { height: 30px; }
+    .voucher-contact-table td.contact .qq { margin-left: 2em; }
+    .voucher-contact-table td.tips { line-height: 1.55; padding: 8px 8px; }
+    .voucher-sign-row { display: flex; justify-content: space-between; width: 72%;
+      margin: 52px 0 12px 4%; font-size: 11pt; }
+    @page { margin: 8mm; }
+  `
+  win.document.open()
+  win.document.write(`<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<title>出库单</title>
+<style>${css}</style>
+</head>
+<body>${sheet.outerHTML}</body>
+</html>`)
+  win.document.close()
+  const trigger = () => {
+    win.focus()
+    win.print()
+    win.close()
+  }
+  if (win.document.readyState === 'complete') setTimeout(trigger, 200)
+  else win.onload = () => setTimeout(trigger, 200)
 }
 
 function payload() {
@@ -478,9 +727,11 @@ function onExport() {
   for (const order of rows) {
     for (const item of order.items) {
       detailRows.push([
-        formatDate(order.recordDate),
         formatDate(order.orderDate),
-        order.unitName || '',
+        formatDate(order.recordDate),
+        order.customer?.unitName || order.unitName || '',
+        order.customer?.name || '',
+        order.operator?.name || '',
         item.product.name,
         item.product.sku,
         item.product.model,
@@ -495,9 +746,11 @@ function onExport() {
     {
       name: '出库明细',
       headers: [
+        '出库日期',
         '录单日期',
-        '下单日期',
-        '单位名称',
+        '客户单位',
+        '课题组',
+        '经手人',
         '物品名称',
         '货号',
         '型号',

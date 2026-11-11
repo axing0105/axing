@@ -161,7 +161,7 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="printVisible" title="入库单打印" width="760px" class="no-print">
+    <el-dialog v-model="printVisible" title="入库单打印" width="760px" class="print-dialog no-print-chrome">
       <div v-if="printOrder" class="print-sheet" id="inbound-print">
         <h2>入库单</h2>
         <div class="print-meta">
@@ -372,7 +372,35 @@ function openPrint(row: InboundOrder) {
 }
 
 function doPrint() {
-  window.print()
+  const sheet = document.getElementById('inbound-print')
+  if (!sheet) return
+  const win = window.open('', '_blank', 'noopener,noreferrer,width=960,height=720')
+  if (!win) {
+    window.print()
+    return
+  }
+  const styles = Array.from(document.querySelectorAll('link[rel="stylesheet"], style'))
+    .map((node) => node.outerHTML)
+    .join('\n')
+  win.document.open()
+  win.document.write(`<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<title>入库单</title>
+${styles}
+<style>html,body{margin:0;padding:0;background:#fff}body{padding:12mm 10mm}</style>
+</head>
+<body>${sheet.outerHTML}</body>
+</html>`)
+  win.document.close()
+  const trigger = () => {
+    win.focus()
+    win.print()
+    win.close()
+  }
+  if (win.document.readyState === 'complete') setTimeout(trigger, 150)
+  else win.onload = () => setTimeout(trigger, 150)
 }
 
 function payload() {
