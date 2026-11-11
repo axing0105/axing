@@ -9,6 +9,7 @@ import inboundRoutes from './routes/inbounds'
 import outboundRoutes from './routes/outbounds'
 import financeRoutes from './routes/finance'
 import invoiceRoutes from './routes/invoices'
+import cloudRoutes from './routes/cloud'
 
 const app = express()
 const port = Number(process.env.PORT) || 8088
@@ -28,6 +29,7 @@ app.use('/api/v1/inbounds', inboundRoutes)
 app.use('/api/v1/outbounds', outboundRoutes)
 app.use('/api/v1/finance', financeRoutes)
 app.use('/api/v1/invoices', invoiceRoutes)
+app.use('/api/v1/cloud', cloudRoutes)
 
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error(err)

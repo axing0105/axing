@@ -3,6 +3,7 @@ name: jxc
 services:
   mysql:
     image: mysql:8.0
+    platform: linux/amd64
     container_name: jxc-mysql
     restart: unless-stopped
     environment:
@@ -22,6 +23,7 @@ services:
   backend:
     build: ./backend
     image: jxc-backend:latest
+    platform: linux/amd64
     container_name: jxc-backend
     restart: unless-stopped
     environment:
@@ -37,6 +39,7 @@ services:
   frontend:
     build: ./frontend
     image: jxc-frontend:latest
+    platform: linux/amd64
     container_name: jxc-frontend
     restart: unless-stopped
     ports:

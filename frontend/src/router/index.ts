@@ -51,6 +51,15 @@ const router = createRouter({
           meta: { title: '系统设置', desc: '配置单位信息、打印抬头与系统默认项。', admin: true },
         },
         {
+          path: 'cloud',
+          component: () => import('@/views/CloudDataView.vue'),
+          meta: {
+            title: '云数据',
+            desc: '查看云端存储状态、租户数据统计，并导出本租户备份。',
+            admin: true,
+          },
+        },
+        {
           path: 'password',
           component: () => import('@/views/PasswordView.vue'),
           meta: { title: '修改密码', desc: '修改当前登录账号密码。' },

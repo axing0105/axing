@@ -73,6 +73,10 @@
               <el-icon><Tools /></el-icon>
               <span>系统设置</span>
             </el-menu-item>
+            <el-menu-item index="/cloud">
+              <el-icon><Cloudy /></el-icon>
+              <span>云数据</span>
+            </el-menu-item>
           </el-sub-menu>
         </el-menu>
       </el-scrollbar>

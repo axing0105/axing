@@ -12,16 +12,16 @@ function yearRange(year: number) {
   return { start, end }
 }
 
-async function buildYearSummary(year: number) {
+async function buildYearSummary(year: number, tenantId: string) {
   const { start, end } = yearRange(year)
 
   const [inbounds, outbounds] = await Promise.all([
     prisma.inboundOrder.findMany({
-      where: { recordDate: { gte: start, lt: end } },
+      where: { tenantId, recordDate: { gte: start, lt: end } },
       select: { amount: true, recordDate: true },
     }),
     prisma.outboundOrder.findMany({
-      where: { recordDate: { gte: start, lt: end } },
+      where: { tenantId, recordDate: { gte: start, lt: end } },
       select: { amount: true, recordDate: true },
     }),
   ])
@@ -37,7 +37,6 @@ async function buildYearSummary(year: number) {
   for (const row of outbounds) {
     const m = months[row.recordDate.getMonth()]
     m.outbound += Number(row.amount)
-    // 交易笔数 = 出库登记录单单数
     m.tradeCount += 1
   }
 
@@ -70,13 +69,14 @@ async function buildYearSummary(year: number) {
 
 async function summaryHandler(req: Request, res: Response) {
   const year = Number(req.query.year) || new Date().getFullYear()
-  res.json(await buildYearSummary(year))
+  res.json(await buildYearSummary(year, req.user!.tenantId))
 }
 
 router.get('/summary', summaryHandler)
 router.get('/', summaryHandler)
 
 router.get('/ledger', async (req, res) => {
+  const tenantId = req.user!.tenantId
   const limit = Math.min(Number(req.query.limit) || 500, 2000)
   const fromRaw = String(req.query.from || '').trim()
   const toRaw = String(req.query.to || '').trim()
@@ -94,14 +94,14 @@ router.get('/ledger', async (req, res) => {
 
   const [inbounds, outbounds] = await Promise.all([
     prisma.inboundOrder.findMany({
-      where: { recordDate: { gte: from, lte: end } },
+      where: { tenantId, recordDate: { gte: from, lte: end } },
       include: {
         operator: { select: { name: true } },
       },
       orderBy: { recordDate: 'desc' },
     }),
     prisma.outboundOrder.findMany({
-      where: { recordDate: { gte: from, lte: end } },
+      where: { tenantId, recordDate: { gte: from, lte: end } },
       include: {
         customer: true,
         operator: { select: { name: true } },
@@ -110,7 +110,6 @@ router.get('/ledger', async (req, res) => {
     }),
   ])
 
-  // 出入库数量 = 录单单数（单据条数），不是物品数量合计
   const inboundQty = inbounds.length
   const outboundQty = outbounds.length
   const inboundAmount = Number(
@@ -164,7 +163,7 @@ router.get('/ledger', async (req, res) => {
 
 router.get('/year-end', async (req, res) => {
   const year = Number(req.query.year) || new Date().getFullYear()
-  const summary = await buildYearSummary(year)
+  const summary = await buildYearSummary(year, req.user!.tenantId)
   res.json({
     ...summary,
     balanceDiff: summary.grossProfit,

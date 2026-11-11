@@ -22,12 +22,14 @@ router.get('/', async (req, res) => {
   const invoiceNo = String(req.query.invoiceNo || '').trim()
   const researchGroup = String(req.query.researchGroup || '').trim()
   const paidRaw = req.query.paid
+  const tenantId = req.user!.tenantId
 
   const where: {
+    tenantId: string
     invoiceNo?: { contains: string }
     researchGroup?: { contains: string }
     paid?: boolean
-  } = {}
+  } = { tenantId }
   if (invoiceNo) where.invoiceNo = { contains: invoiceNo }
   if (researchGroup) where.researchGroup = { contains: researchGroup }
   if (paidRaw === 'true' || paidRaw === 'false') where.paid = paidRaw === 'true'
@@ -45,7 +47,9 @@ router.post('/', async (req, res) => {
     return res.status(400).json({ message: parsed.error.errors[0]?.message || '参数不合法' })
   }
   try {
-    const invoice = await prisma.invoice.create({ data: parsed.data })
+    const invoice = await prisma.invoice.create({
+      data: { ...parsed.data, tenantId: req.user!.tenantId },
+    })
     res.status(201).json(serialize(invoice))
   } catch {
     res.status(400).json({ message: '发票号已存在' })
@@ -57,9 +61,14 @@ router.patch('/:id', async (req, res) => {
   if (!parsed.success) {
     return res.status(400).json({ message: parsed.error.errors[0]?.message || '参数不合法' })
   }
+  const existing = await prisma.invoice.findFirst({
+    where: { id: req.params.id, tenantId: req.user!.tenantId },
+  })
+  if (!existing) return res.status(404).json({ message: '发票不存在' })
+
   try {
     const invoice = await prisma.invoice.update({
-      where: { id: req.params.id },
+      where: { id: existing.id },
       data: parsed.data,
     })
     res.json(serialize(invoice))
@@ -73,8 +82,13 @@ router.patch('/:id', async (req, res) => {
 })
 
 router.delete('/:id', async (req, res) => {
+  const existing = await prisma.invoice.findFirst({
+    where: { id: req.params.id, tenantId: req.user!.tenantId },
+  })
+  if (!existing) return res.status(404).json({ message: '发票不存在' })
+
   try {
-    await prisma.invoice.delete({ where: { id: req.params.id } })
+    await prisma.invoice.delete({ where: { id: existing.id } })
     res.json({ message: '已删除' })
   } catch {
     res.status(404).json({ message: '发票不存在' })

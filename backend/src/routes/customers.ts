@@ -17,16 +17,20 @@ const customerSchema = z.object({
 
 router.get('/', async (req, res) => {
   const q = String(req.query.q || '').trim()
+  const tenantId = req.user!.tenantId
   const customers = await prisma.customer.findMany({
-    where: q
-      ? {
-          OR: [
-            { name: { contains: q } },
-            { unitName: { contains: q } },
-            { phone: { contains: q } },
-          ],
-        }
-      : undefined,
+    where: {
+      tenantId,
+      ...(q
+        ? {
+            OR: [
+              { name: { contains: q } },
+              { unitName: { contains: q } },
+              { phone: { contains: q } },
+            ],
+          }
+        : {}),
+    },
     orderBy: { updatedAt: 'desc' },
   })
   res.json(serialize(customers))
@@ -37,7 +41,9 @@ router.post('/', async (req, res) => {
   if (!parsed.success) {
     return res.status(400).json({ message: parsed.error.errors[0]?.message || '参数不合法' })
   }
-  const customer = await prisma.customer.create({ data: parsed.data })
+  const customer = await prisma.customer.create({
+    data: { ...parsed.data, tenantId: req.user!.tenantId },
+  })
   res.status(201).json(serialize(customer))
 })
 
@@ -46,9 +52,14 @@ router.patch('/:id', async (req, res) => {
   if (!parsed.success) {
     return res.status(400).json({ message: parsed.error.errors[0]?.message || '参数不合法' })
   }
+  const existing = await prisma.customer.findFirst({
+    where: { id: req.params.id, tenantId: req.user!.tenantId },
+  })
+  if (!existing) return res.status(404).json({ message: '课题组不存在' })
+
   try {
     const customer = await prisma.customer.update({
-      where: { id: req.params.id },
+      where: { id: existing.id },
       data: parsed.data,
     })
     res.json(serialize(customer))
@@ -58,8 +69,13 @@ router.patch('/:id', async (req, res) => {
 })
 
 router.delete('/:id', async (req, res) => {
+  const existing = await prisma.customer.findFirst({
+    where: { id: req.params.id, tenantId: req.user!.tenantId },
+  })
+  if (!existing) return res.status(404).json({ message: '课题组不存在' })
+
   try {
-    await prisma.customer.delete({ where: { id: req.params.id } })
+    await prisma.customer.delete({ where: { id: existing.id } })
     res.json({ message: '已删除' })
   } catch {
     res.status(400).json({ message: '删除失败，可能已有出库记录' })

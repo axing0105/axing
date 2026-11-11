@@ -1,0 +1,47 @@
+name: jxc
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: jxc-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_DATABASE: jxc
+      MYSQL_USER: jxc
+      MYSQL_PASSWORD: jxc123
+    volumes:
+      - jxc_mysql_data:/var/lib/mysql
+    command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-ujxc", "-pjxc123"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  backend:
+    image: jxc-backend:latest
+    container_name: jxc-backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: mysql://jxc:jxc123@mysql:3306/jxc
+      JWT_SECRET: jxc-docker-secret-change-me
+      PORT: "8088"
+      DB_HOST: mysql
+      DB_PORT: "3306"
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  frontend:
+    image: jxc-frontend:latest
+    container_name: jxc-frontend
+    restart: unless-stopped
+    ports:
+      - "3080:80"
+    depends_on:
+      - backend
+
+volumes:
+  jxc_mysql_data:
+    name: jxc_mysql_data

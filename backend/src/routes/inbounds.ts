@@ -32,11 +32,11 @@ const includeOrder = {
   items: { include: { product: true } },
 } as const
 
-async function buildItemRows(tx: any, items: z.infer<typeof itemSchema>[]) {
+async function buildItemRows(tx: any, items: z.infer<typeof itemSchema>[], tenantId: string) {
   let total = 0
   const itemRows: { productId: string; quantity: number; unitPrice: number; amount: number }[] = []
   for (const item of items) {
-    const resolved = await resolveProductId(tx, item)
+    const resolved = await resolveProductId(tx, item, tenantId)
     const amount = Number((resolved.unitPrice * item.quantity).toFixed(2))
     total += amount
     itemRows.push({
@@ -52,6 +52,7 @@ async function buildItemRows(tx: any, items: z.infer<typeof itemSchema>[]) {
 router.get('/', async (req, res) => {
   const from = String(req.query.from || '').trim()
   const to = String(req.query.to || '').trim()
+  const tenantId = req.user!.tenantId
   const dateFilter =
     from || to
       ? {
@@ -63,7 +64,7 @@ router.get('/', async (req, res) => {
       : {}
 
   const list = await prisma.inboundOrder.findMany({
-    where: dateFilter,
+    where: { tenantId, ...dateFilter },
     orderBy: [{ recordDate: 'desc' }, { createdAt: 'desc' }],
     include: includeOrder,
   })
@@ -71,8 +72,8 @@ router.get('/', async (req, res) => {
 })
 
 router.get('/:id', async (req, res) => {
-  const order = await prisma.inboundOrder.findUnique({
-    where: { id: req.params.id },
+  const order = await prisma.inboundOrder.findFirst({
+    where: { id: req.params.id, tenantId: req.user!.tenantId },
     include: includeOrder,
   })
   if (!order) return res.status(404).json({ message: '入库单不存在' })
@@ -85,11 +86,13 @@ router.post('/', async (req, res) => {
     return res.status(400).json({ message: parsed.error.errors[0]?.message || '参数不合法' })
   }
 
+  const tenantId = req.user!.tenantId
   try {
     const order = await prisma.$transaction(async (tx) => {
-      const { total, itemRows } = await buildItemRows(tx, parsed.data.items)
+      const { total, itemRows } = await buildItemRows(tx, parsed.data.items, tenantId)
       const created = await tx.inboundOrder.create({
         data: {
+          tenantId,
           orderNo: genOrderNo('IN'),
           unitName: parsed.data.unitName || '',
           recordDate: parsed.data.recordDate,
@@ -127,10 +130,11 @@ router.patch('/:id', async (req, res) => {
     return res.status(400).json({ message: parsed.error.errors[0]?.message || '参数不合法' })
   }
 
+  const tenantId = req.user!.tenantId
   try {
     const order = await prisma.$transaction(async (tx) => {
-      const existing = await tx.inboundOrder.findUnique({
-        where: { id: req.params.id },
+      const existing = await tx.inboundOrder.findFirst({
+        where: { id: req.params.id, tenantId },
         include: { items: true },
       })
       if (!existing) throw new Error('NOT_FOUND')
@@ -143,7 +147,7 @@ router.patch('/:id', async (req, res) => {
       }
       await tx.inboundItem.deleteMany({ where: { orderId: existing.id } })
 
-      const { total, itemRows } = await buildItemRows(tx, parsed.data.items)
+      const { total, itemRows } = await buildItemRows(tx, parsed.data.items, tenantId)
       for (const item of itemRows) {
         await tx.product.update({
           where: { id: item.productId },
@@ -178,15 +182,18 @@ router.patch('/:id', async (req, res) => {
 })
 
 router.delete('/:id', async (req, res) => {
+  const tenantId = req.user!.tenantId
   try {
     await prisma.$transaction(async (tx) => {
-      const existing = await tx.inboundOrder.findUnique({
-        where: { id: req.params.id },
+      const existing = await tx.inboundOrder.findFirst({
+        where: { id: req.params.id, tenantId },
         include: { items: true },
       })
       if (!existing) throw new Error('NOT_FOUND')
       for (const item of existing.items) {
-        const product = await tx.product.findUnique({ where: { id: item.productId } })
+        const product = await tx.product.findFirst({
+          where: { id: item.productId, tenantId },
+        })
         if (product && product.stock < item.quantity) {
           throw new Error(`STOCK:${product.name}:${product.stock}`)
         }

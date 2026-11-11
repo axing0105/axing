@@ -4,6 +4,7 @@ import { Role } from '@prisma/client'
 
 export type AuthUser = {
   id: string
+  tenantId: string
   username: string
   name: string
   companyName?: string
@@ -31,6 +32,9 @@ export function authRequired(req: Request, res: Response, next: NextFunction) {
   }
   try {
     const payload = jwt.verify(header.slice(7), secret()) as AuthUser
+    if (!payload.tenantId) {
+      return res.status(401).json({ message: '登录已失效，请重新登录' })
+    }
     req.user = payload
     next()
   } catch {

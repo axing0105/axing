@@ -3,6 +3,13 @@ import http from './http'
 export const login = (data: { username: string; password: string }) =>
   http.post('/login', data) as Promise<{ token: string; user: UserInfo }>
 
+export const register = (data: {
+  username: string
+  password: string
+  name: string
+  companyName?: string
+}) => http.post('/register', data) as Promise<{ token: string; user: UserInfo }>
+
 export const getMe = () => http.get('/me') as Promise<UserInfo>
 
 export const updatePassword = (data: { oldPassword: string; newPassword: string }) =>
@@ -69,8 +76,12 @@ export const updateInvoice = (id: string, data: Record<string, unknown>) =>
   http.patch(`/invoices/${id}`, data)
 export const deleteInvoice = (id: string) => http.delete(`/invoices/${id}`)
 
+export const getCloudStatus = () => http.get('/cloud/status') as Promise<CloudStatus>
+export const exportCloudData = () => http.get('/cloud/export') as Promise<CloudExportPayload>
+
 export type UserInfo = {
   id: string
+  tenantId: string
   username: string
   name: string
   companyName?: string
@@ -188,4 +199,31 @@ export type LedgerResult = {
 
 export type YearEndReport = FinanceSummary & {
   balanceDiff: number
+}
+
+export type CloudStatus = {
+  connected: boolean
+  storage: string
+  tenant: { id: string; name: string; createdAt: string }
+  account: { id: string; username: string; name: string; role: string }
+  counts: {
+    users: number
+    products: number
+    customers: number
+    inbounds: number
+    outbounds: number
+    invoices: number
+  }
+  checkedAt: string
+}
+
+export type CloudExportPayload = {
+  exportedAt: string
+  tenant: { id: string; name: string; createdAt: string }
+  users: unknown[]
+  products: unknown[]
+  customers: unknown[]
+  inbounds: unknown[]
+  outbounds: unknown[]
+  invoices: unknown[]
 }

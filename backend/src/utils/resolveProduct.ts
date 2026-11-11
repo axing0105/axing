@@ -12,12 +12,18 @@ export type ResolveItemInput = {
   unitPrice?: number
 }
 
-export async function resolveProductId(tx: Tx, item: ResolveItemInput): Promise<{
+export async function resolveProductId(
+  tx: Tx,
+  item: ResolveItemInput,
+  tenantId: string,
+): Promise<{
   productId: string
   unitPrice: number
 }> {
   if (item.productId) {
-    const product = await tx.product.findUnique({ where: { id: item.productId } })
+    const product = await tx.product.findFirst({
+      where: { id: item.productId, tenantId },
+    })
     if (!product) throw new Error('INVALID_PRODUCT')
     const unitPrice =
       item.unitPrice !== undefined ? Number(item.unitPrice) : Number(product.unitPrice)
@@ -29,7 +35,9 @@ export async function resolveProductId(tx: Tx, item: ResolveItemInput): Promise<
   if (!name && !sku) throw new Error('NEED_NAME_OR_SKU')
 
   if (sku) {
-    const existing = await tx.product.findUnique({ where: { sku } })
+    const existing = await tx.product.findUnique({
+      where: { tenantId_sku: { tenantId, sku } },
+    })
     if (existing) {
       const unitPrice =
         item.unitPrice !== undefined ? Number(item.unitPrice) : Number(existing.unitPrice)
@@ -52,6 +60,7 @@ export async function resolveProductId(tx: Tx, item: ResolveItemInput): Promise<
   const unitPrice = item.unitPrice !== undefined ? Number(item.unitPrice) : 0
   const created = await tx.product.create({
     data: {
+      tenantId,
       name: name || sku,
       sku,
       brand: '',

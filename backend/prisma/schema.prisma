@@ -12,8 +12,22 @@ enum Role {
   STAFF
 }
 
+model Tenant {
+  id        String          @id @default(cuid())
+  name      String
+  createdAt DateTime        @default(now())
+  users     User[]
+  products  Product[]
+  customers Customer[]
+  inbounds  InboundOrder[]
+  outbounds OutboundOrder[]
+  invoices  Invoice[]
+}
+
 model User {
   id           String          @id @default(cuid())
+  tenantId     String
+  tenant       Tenant          @relation(fields: [tenantId], references: [id])
   username     String          @unique
   passwordHash String
   name         String
@@ -23,12 +37,16 @@ model User {
   updatedAt    DateTime        @updatedAt
   inbounds     InboundOrder[]
   outbounds    OutboundOrder[]
+
+  @@index([tenantId])
 }
 
 model Product {
   id            String         @id @default(cuid())
+  tenantId      String
+  tenant        Tenant         @relation(fields: [tenantId], references: [id])
   name          String
-  sku           String         @unique
+  sku           String
   brand         String         @default("")
   model         String         @default("")
   unit          String         @default("件")
@@ -40,11 +58,15 @@ model Product {
   inboundItems  InboundItem[]
   outboundItems OutboundItem[]
 
+  @@unique([tenantId, sku])
+  @@index([tenantId])
   @@index([brand])
 }
 
 model Customer {
   id        String          @id @default(cuid())
+  tenantId  String
+  tenant    Tenant          @relation(fields: [tenantId], references: [id])
   name      String
   unitName  String          @default("")
   phone     String          @default("")
@@ -53,11 +75,15 @@ model Customer {
   createdAt DateTime        @default(now())
   updatedAt DateTime        @updatedAt
   outbounds OutboundOrder[]
+
+  @@index([tenantId])
 }
 
 model InboundOrder {
   id         String        @id @default(cuid())
-  orderNo    String        @unique
+  tenantId   String
+  tenant     Tenant        @relation(fields: [tenantId], references: [id])
+  orderNo    String
   unitName   String        @default("")
   recordDate DateTime      @default(now())
   orderDate  DateTime      @default(now())
@@ -67,6 +93,9 @@ model InboundOrder {
   operator   User          @relation(fields: [operatorId], references: [id])
   createdAt  DateTime      @default(now())
   items      InboundItem[]
+
+  @@unique([tenantId, orderNo])
+  @@index([tenantId])
 }
 
 model InboundItem {
@@ -82,7 +111,9 @@ model InboundItem {
 
 model OutboundOrder {
   id         String         @id @default(cuid())
-  orderNo    String         @unique
+  tenantId   String
+  tenant     Tenant         @relation(fields: [tenantId], references: [id])
+  orderNo    String
   unitName   String         @default("")
   recordDate DateTime       @default(now())
   orderDate  DateTime       @default(now())
@@ -94,6 +125,9 @@ model OutboundOrder {
   operator   User           @relation(fields: [operatorId], references: [id])
   createdAt  DateTime       @default(now())
   items      OutboundItem[]
+
+  @@unique([tenantId, orderNo])
+  @@index([tenantId])
 }
 
 model OutboundItem {
@@ -109,14 +143,19 @@ model OutboundItem {
 
 model Invoice {
   id            String   @id @default(cuid())
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
   invoiceTime   DateTime
   invoiceUnit   String
   amount        Decimal  @db.Decimal(14, 2)
-  invoiceNo     String   @unique
+  invoiceNo     String
   researchGroup String   @default("")
   paid          Boolean  @default(false)
   contact       String   @default("")
   remark        String   @db.Text
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+
+  @@unique([tenantId, invoiceNo])
+  @@index([tenantId])
 }

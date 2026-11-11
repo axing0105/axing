@@ -9,6 +9,7 @@ const router = Router()
 
 const userSelect = {
   id: true,
+  tenantId: true,
   username: true,
   name: true,
   companyName: true,
@@ -18,8 +19,9 @@ const userSelect = {
 
 router.use(authRequired, adminRequired)
 
-router.get('/', async (_req, res) => {
+router.get('/', async (req, res) => {
   const users = await prisma.user.findMany({
+    where: { tenantId: req.user!.tenantId },
     orderBy: { createdAt: 'desc' },
     select: userSelect,
   })
@@ -42,6 +44,7 @@ router.post('/', async (req, res) => {
 
   const user = await prisma.user.create({
     data: {
+      tenantId: req.user!.tenantId,
       username: parsed.data.username,
       name: parsed.data.name,
       companyName: parsed.data.companyName || '',
@@ -63,6 +66,11 @@ router.patch('/:id', async (req, res) => {
   const parsed = schema.safeParse(req.body)
   if (!parsed.success) return res.status(400).json({ message: '参数不合法' })
 
+  const existing = await prisma.user.findFirst({
+    where: { id: req.params.id, tenantId: req.user!.tenantId },
+  })
+  if (!existing) return res.status(404).json({ message: '用户不存在' })
+
   const data: {
     name?: string
     companyName?: string
@@ -74,28 +82,25 @@ router.patch('/:id', async (req, res) => {
   if (parsed.data.role) data.role = parsed.data.role
   if (parsed.data.password) data.passwordHash = await bcrypt.hash(parsed.data.password, 10)
 
-  try {
-    const user = await prisma.user.update({
-      where: { id: req.params.id },
-      data,
-      select: userSelect,
-    })
-    res.json(serialize(user))
-  } catch {
-    res.status(404).json({ message: '用户不存在' })
-  }
+  const user = await prisma.user.update({
+    where: { id: existing.id },
+    data,
+    select: userSelect,
+  })
+  res.json(serialize(user))
 })
 
 router.delete('/:id', async (req, res) => {
   if (req.params.id === req.user!.id) {
     return res.status(400).json({ message: '不能删除当前登录账号' })
   }
-  try {
-    await prisma.user.delete({ where: { id: req.params.id } })
-    res.json({ message: '已删除' })
-  } catch {
-    res.status(404).json({ message: '用户不存在' })
-  }
+  const existing = await prisma.user.findFirst({
+    where: { id: req.params.id, tenantId: req.user!.tenantId },
+  })
+  if (!existing) return res.status(404).json({ message: '用户不存在' })
+
+  await prisma.user.delete({ where: { id: existing.id } })
+  res.json({ message: '已删除' })
 })
 
 export default router

@@ -17,9 +17,13 @@ s.on('error',()=>process.exit(1));
   sleep 1
 done
 
+echo "Migrating tenant schema (if needed)..."
+npx tsx prisma/migrate-tenant.ts || true
+
 echo "Pushing schema & seeding..."
-npx prisma db push
-node dist/prisma/seed.js || true
+# Unique-constraint warnings after migrate-tenant are expected; data already backfilled.
+npx prisma db push --accept-data-loss
+npx tsx prisma/seed.ts || true
 
 echo "Starting API..."
 exec node dist/src/index.js

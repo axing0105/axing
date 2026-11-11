@@ -34,12 +34,19 @@ const includeOrder = {
   items: { include: { product: true } },
 } as const
 
-async function buildItemRows(tx: any, items: z.infer<typeof itemSchema>[], checkStock: boolean) {
+async function buildItemRows(
+  tx: any,
+  items: z.infer<typeof itemSchema>[],
+  tenantId: string,
+  checkStock: boolean,
+) {
   const itemRows: { productId: string; quantity: number; unitPrice: number; amount: number }[] = []
   let total = 0
   for (const item of items) {
-    const resolved = await resolveProductId(tx, item)
-    const product = await tx.product.findUnique({ where: { id: resolved.productId } })
+    const resolved = await resolveProductId(tx, item, tenantId)
+    const product = await tx.product.findFirst({
+      where: { id: resolved.productId, tenantId },
+    })
     if (!product) throw new Error('INVALID_PRODUCT')
     if (checkStock && product.stock < item.quantity) {
       throw new Error(`STOCK:${product.name}:${product.stock}`)
@@ -61,6 +68,7 @@ async function buildItemRows(tx: any, items: z.infer<typeof itemSchema>[], check
 router.get('/', async (req, res) => {
   const from = String(req.query.from || '').trim()
   const to = String(req.query.to || '').trim()
+  const tenantId = req.user!.tenantId
   const dateFilter =
     from || to
       ? {
@@ -72,7 +80,7 @@ router.get('/', async (req, res) => {
       : {}
 
   const list = await prisma.outboundOrder.findMany({
-    where: dateFilter,
+    where: { tenantId, ...dateFilter },
     orderBy: [{ recordDate: 'desc' }, { createdAt: 'desc' }],
     include: includeOrder,
   })
@@ -80,8 +88,8 @@ router.get('/', async (req, res) => {
 })
 
 router.get('/:id', async (req, res) => {
-  const order = await prisma.outboundOrder.findUnique({
-    where: { id: req.params.id },
+  const order = await prisma.outboundOrder.findFirst({
+    where: { id: req.params.id, tenantId: req.user!.tenantId },
     include: includeOrder,
   })
   if (!order) return res.status(404).json({ message: '出库单不存在' })
@@ -94,14 +102,18 @@ router.post('/', async (req, res) => {
     return res.status(400).json({ message: parsed.error.errors[0]?.message || '参数不合法' })
   }
 
-  const customer = await prisma.customer.findUnique({ where: { id: parsed.data.customerId } })
+  const tenantId = req.user!.tenantId
+  const customer = await prisma.customer.findFirst({
+    where: { id: parsed.data.customerId, tenantId },
+  })
   if (!customer) return res.status(400).json({ message: '课题组不存在' })
 
   try {
     const order = await prisma.$transaction(async (tx) => {
-      const { total, itemRows } = await buildItemRows(tx, parsed.data.items, true)
+      const { total, itemRows } = await buildItemRows(tx, parsed.data.items, tenantId, true)
       const created = await tx.outboundOrder.create({
         data: {
+          tenantId,
           orderNo: genOrderNo('OUT'),
           unitName: parsed.data.unitName || '',
           recordDate: parsed.data.recordDate,
@@ -147,18 +159,20 @@ router.patch('/:id', async (req, res) => {
     return res.status(400).json({ message: parsed.error.errors[0]?.message || '参数不合法' })
   }
 
-  const customer = await prisma.customer.findUnique({ where: { id: parsed.data.customerId } })
+  const tenantId = req.user!.tenantId
+  const customer = await prisma.customer.findFirst({
+    where: { id: parsed.data.customerId, tenantId },
+  })
   if (!customer) return res.status(400).json({ message: '课题组不存在' })
 
   try {
     const order = await prisma.$transaction(async (tx) => {
-      const existing = await tx.outboundOrder.findUnique({
-        where: { id: req.params.id },
+      const existing = await tx.outboundOrder.findFirst({
+        where: { id: req.params.id, tenantId },
         include: { items: true },
       })
       if (!existing) throw new Error('NOT_FOUND')
 
-      // restore stock from old items
       for (const item of existing.items) {
         await tx.product.update({
           where: { id: item.productId },
@@ -167,7 +181,7 @@ router.patch('/:id', async (req, res) => {
       }
       await tx.outboundItem.deleteMany({ where: { orderId: existing.id } })
 
-      const { total, itemRows } = await buildItemRows(tx, parsed.data.items, true)
+      const { total, itemRows } = await buildItemRows(tx, parsed.data.items, tenantId, true)
       for (const item of itemRows) {
         await tx.product.update({
           where: { id: item.productId },
@@ -210,10 +224,11 @@ router.patch('/:id', async (req, res) => {
 })
 
 router.delete('/:id', async (req, res) => {
+  const tenantId = req.user!.tenantId
   try {
     await prisma.$transaction(async (tx) => {
-      const existing = await tx.outboundOrder.findUnique({
-        where: { id: req.params.id },
+      const existing = await tx.outboundOrder.findFirst({
+        where: { id: req.params.id, tenantId },
         include: { items: true },
       })
       if (!existing) throw new Error('NOT_FOUND')

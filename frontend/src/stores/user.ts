@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import type { UserInfo } from '@/api'
-import { getMe, login as loginApi } from '@/api'
+import { getMe, login as loginApi, register as registerApi } from '@/api'
 
 export const useUserStore = defineStore('user', () => {
   const token = ref(localStorage.getItem('token') || '')
@@ -12,12 +12,26 @@ export const useUserStore = defineStore('user', () => {
   const isAdmin = computed(() => user.value?.role === 'ADMIN')
   const isLoggedIn = computed(() => Boolean(token.value))
 
+  function persist(nextToken: string, nextUser: UserInfo) {
+    token.value = nextToken
+    user.value = nextUser
+    localStorage.setItem('token', nextToken)
+    localStorage.setItem('user', JSON.stringify(nextUser))
+  }
+
   async function login(username: string, password: string) {
     const res = await loginApi({ username, password })
-    token.value = res.token
-    user.value = res.user
-    localStorage.setItem('token', res.token)
-    localStorage.setItem('user', JSON.stringify(res.user))
+    persist(res.token, res.user)
+  }
+
+  async function register(data: {
+    username: string
+    password: string
+    name: string
+    companyName?: string
+  }) {
+    const res = await registerApi(data)
+    persist(res.token, res.user)
   }
 
   async function fetchMe() {
@@ -34,5 +48,5 @@ export const useUserStore = defineStore('user', () => {
     localStorage.removeItem('user')
   }
 
-  return { token, user, isAdmin, isLoggedIn, login, fetchMe, logout }
+  return { token, user, isAdmin, isLoggedIn, login, register, fetchMe, logout }
 })
